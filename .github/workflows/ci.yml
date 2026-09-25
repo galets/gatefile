@@ -1,12 +1,35 @@
 name: CI
 
-"on": [push]
+"on":
+  push:
+    branches: [master]
 
 jobs:
   build-test-deb:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: master
+
+      - name: Bump build number
+        run: |
+          git pull --rebase origin master
+          V=$(tr -d ' \t\r\n' < VERSION)
+          MAJ=$(echo "$V" | cut -d. -f1)
+          MIN=$(echo "$V" | cut -d. -f2)
+          PATCH=$(echo "$V" | cut -d. -f3)
+          NEXT="$MAJ.$MIN.$((PATCH + 1))"
+          echo "$NEXT" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "Bump build to $NEXT [skip ci]" || exit 0
+          git push origin master
 
       - name: Install Go from apt
         run: |
