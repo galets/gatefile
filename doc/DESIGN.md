@@ -234,10 +234,41 @@ DESIGN.md            # This file
 
 ## Dependencies
 
-Need only:
-- a hash function (example: MD5) for ETags (lives in `store`)
-- an HTTP server
-- file reading / writing
+Need only (Go standard library):
+- `crypto/md5` hash function for ETags (lives in `store`)
+- `net/http` HTTP server + SSE (lives in `main`, `routes`, `sse`)
+- `os` file reading / writing (lives in `store`)
+- `log` startup logging to stderr (lives in `main`)
+
+No third-party dependencies or frameworks.
+
+---
+
+## Implementation Recommendation
+
+**Decision: Plain Go standard library, no framework. Minimum Go version: 1.22.**
+
+No router, no web framework, no external packages. Use only
+`net/http` (+ `crypto/md5`, `os`) with `http.ServeMux` for the
+three routes (`GET` document, `GET ?subscribe`, `POST` update).
+
+**Rationale (requirements):**
+
+- `linux only` - `GOOS=linux go build` produces a single static binary.
+- `easy to build` - `go build ./src`, no `go get`, no version pinning.
+- `few dependencies` - zero external packages to download/audit.
+- `reduced attack surface` - no framework CVEs; ~150 LOC, auditable
+  `auth`, `store`, `sse`, `routes`.
+- `low resource usage` - single-process, in-memory `DocumentStore`,
+  unbuffered SSE broadcast; ~5-10MB idle.
+- `easy to deploy` - copy one binary, set `BASE_URL`, `DOCUMENT_PATH`,
+  `API_KEY`, run as systemd unit. No runtime or container required.
+
+**Rejected alternatives:**
+
+- Python/Node - require interpreter/runtime on target, higher memory.
+- Rust - no HTTP in stdlib, requires `axum`/`hyper` via cargo.
+- C - would require hand-rolled HTTP/SSE, higher bug risk.
 
 ---
 
