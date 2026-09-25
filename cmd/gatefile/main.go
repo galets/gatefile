@@ -7,6 +7,7 @@ import (
 
 	"github.com/galets/gatefile/internal/auth"
 	"github.com/galets/gatefile/internal/config"
+	"github.com/galets/gatefile/internal/httplog"
 	"github.com/galets/gatefile/internal/routes"
 	"github.com/galets/gatefile/internal/sse"
 	"github.com/galets/gatefile/internal/store"
@@ -36,7 +37,7 @@ func main() {
 	h := &routes.Handler{Store: st, SSE: mgr, Hook: cfg.Hook}
 
 	mux := http.NewServeMux()
-	mux.Handle(cfg.BaseURL, auth.Middleware(cfg.APIKey, h))
+	mux.Handle(cfg.BaseURL, httplog.Middleware(auth.Middleware(cfg.APIKey, h)))
 
 	log.Printf("gatefile listening on %s base=%s doc=%s", cfg.Addr, cfg.BaseURL, cfg.DocumentPath)
 	if err := http.ListenAndServe(cfg.Addr, mux); err != nil {
