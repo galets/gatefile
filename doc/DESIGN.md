@@ -150,6 +150,7 @@ RestHandler:
 | Operation    | Header     | Requirement                                        |
 | ------------ | ---------- | -------------------------------------------------- |
 | GET response | `ETag`     | Always include current ETag                        |
+| POST success | `ETag`     | Always include new ETag                            |
 | POST request | `If-Match` | Required. Reject with **409 Conflict** if mismatch |
 | POST request | `If-Match` | Return **400 Bad Request** if missing              |
 
@@ -217,6 +218,7 @@ hello
 
 ```http
 HTTP/1.1 200 OK
+ETag: "5d41402abc4b2a76b9719d911017c592"
 ```
 
 **Conflict response:**

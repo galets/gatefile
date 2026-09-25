@@ -87,6 +87,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		h.SSE.Broadcast(newEtag)
+		w.Header().Set("ETag", newEtag)
 		w.WriteHeader(http.StatusOK)
 		return
 	}

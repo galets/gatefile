@@ -90,7 +90,11 @@ curl -i -X POST $BASE \
   -H "Content-Type: text/plain" \
   --data 'hello'
 # HTTP/1.1 200 OK
+# ETag: 5d41402abc4b2a76b9719d911017c592
 ```
+
+The `200 OK` response includes the new document version in the
+`ETag` header (md5 of the body just stored).
 
 Verify:
 

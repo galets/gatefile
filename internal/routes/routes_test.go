@@ -102,8 +102,10 @@ func TestPost(t *testing.T) {
 			t.Fatalf("mismatch ETag header: got %q", h.Get("ETag"))
 		}
 	}
-	if code, _, _ := post("d41d8cd98f00b204e9800998ecf8427e", "hello"); code != 200 {
+	if code, h, _ := post("d41d8cd98f00b204e9800998ecf8427e", "hello"); code != 200 {
 		t.Fatalf("valid POST: got %d want 200", code)
+	} else if h.Get("ETag") != store.Hash([]byte("hello")) {
+		t.Fatalf("valid POST ETag: got %q want %q", h.Get("ETag"), store.Hash([]byte("hello")))
 	}
 	if code, _, body := get(t, srv, map[string]string{"Authorization": authH}); code != 200 || body != "hello" {
 		t.Fatalf("GET after POST: got %d %q", code, body)
