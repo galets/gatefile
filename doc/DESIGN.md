@@ -7,7 +7,7 @@ Single-document synchronization service with REST API and Server-Sent Events (SS
 ## Configuration (env only)
 
 ```sh
-BASE_URL=/gatefile/file.txt
+BASE_URL=/gatefile/file
 DOCUMENT_PATH=/path/to/file.txt
 API_KEY=secret
 GATEFILE_HOOK=/usr/local/bin/gatefile_update.sh
@@ -15,10 +15,11 @@ GATEFILE_HOOK=/usr/local/bin/gatefile_update.sh
 
 **Immutable settings loaded on startup:**
 
-- `BASE_URL` - API endpoint prefix (default: `/gatefile/file.txt`)
+- `BASE_URL` - API endpoint prefix (default: `/gatefile/file`)
 - `DOCUMENT_PATH` - Path to persistent document file (required)
 - `API_KEY` - Single shared secret (required)
 - `GATEFILE_HOOK` - Path to OS command executed on update (optional, no hook if unset/empty)
+- `ADDR` - Listen address (default: `127.0.0.1:8654`)
 
 ## Data Structures
 
@@ -140,9 +141,9 @@ RestHandler:
 
 **Endpoints:**
 
-- `GET /{base_url}/file.txt` - Return document with ETag
-- `GET /{base_url}/file.txt?subscribe` - SSE stream
-- `POST /{base_url}/file.txt` - Update document
+- `GET {base_url}` - Return document with ETag
+- `GET {base_url}?subscribe` - SSE stream
+- `POST {base_url}` - Update document
 
 **ETag handling:**
 
@@ -167,7 +168,7 @@ RestHandler:
 
 ## HTTP API Specification
 
-### GET /gatefile/file.txt
+### GET /gatefile/file
 
 **Response:**
 
@@ -180,7 +181,7 @@ Content-Length: 0
 [empty body]
 ```
 
-### GET /gatefile/file.txt?subscribe (SSE)
+### GET /gatefile/file?subscribe (SSE)
 
 **Connection:**
 
@@ -199,12 +200,12 @@ d41d8cd98f00b204e9800998ecf8427e
 098f6bcd4621d373cade4e832627b4f6
 ```
 
-### POST /gatefile/file.txt
+### POST /gatefile/file
 
 **Request:**
 
 ```http
-POST /gatefile/file.txt HTTP/1.1
+POST /gatefile/file HTTP/1.1
 Content-Type: text/plain
 If-Match: "d41d8cd98f00b204e9800998ecf8427e"
 Authorization: Bearer $API_KEY
@@ -337,7 +338,7 @@ three routes (`GET` document, `GET ?subscribe`, `POST` update).
 
 ## SSE Connection Lifecycle
 
-1. Client connects with `GET /gatefile/file.txt?subscribe`
+1. Client connects with `GET /gatefile/file?subscribe`
 
 2. Server sends current ETag immediately:
    

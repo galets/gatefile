@@ -17,7 +17,7 @@ type Config struct {
 func Load() (*Config, error) {
 	base := os.Getenv("BASE_URL")
 	if base == "" {
-		base = "/gatefile/file.txt"
+		base = "/gatefile/file"
 	}
 	if !strings.HasPrefix(base, "/") {
 		base = "/" + base
@@ -32,7 +32,7 @@ func Load() (*Config, error) {
 	}
 	addr := os.Getenv("ADDR")
 	if addr == "" {
-		addr = ":8080"
+		addr = "127.0.0.1:8654"
 	}
 	return &Config{BaseURL: base, DocumentPath: doc, APIKey: key, Addr: addr, Hook: os.Getenv("GATEFILE_HOOK")}, nil
 }

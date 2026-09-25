@@ -22,3 +22,5 @@ header on `POST` requests; mismatched or missing ETags are rejected to prevent r
 (SSE) to receive instant notifications whenever the file changes.
 
 * **Stateless API**: It provides a simple REST interface authenticated via simple API keys.
+
+See [HOWTO.md](doc/HOWTO.md) for more information.

@@ -14,10 +14,10 @@ Configuration is env-only:
 
 | Var             | Required | Default              | Meaning                               |
 | --------------- | -------- | -------------------- | ------------------------------------- |
-| `BASE_URL`      | no       | `/gatefile/file.txt` | API endpoint path                     |
+| `BASE_URL`      | no       | `/gatefile/file` | API endpoint path                     |
 | `DOCUMENT_PATH` | yes      | -                    | Path to the persistent document file  |
 | `API_KEY`       | yes      | -                    | Shared secret, sent as `Bearer <key>` |
-| `ADDR`          | no       | `:8080`              | Listen address                        |
+| `ADDR`          | no       | `127.0.0.1:8654`     | Listen address                        |
 | `GATEFILE_HOOK` | no       | - (disabled)         | Path to executable run on each update |
 
 Build and run:
@@ -27,7 +27,7 @@ go build -o /tmp/gatefile ./cmd/gatefile
 
 mkdir -p tmp && touch tmp/file.txt
 
-BASE_URL=/gatefile/file.txt \
+BASE_URL=/gatefile/file \
 DOCUMENT_PATH=$PWD/tmp/file.txt \
 API_KEY=secret \
 ADDR=127.0.0.1:8654 \
@@ -37,13 +37,13 @@ ADDR=127.0.0.1:8654 \
 Startup logs to stderr, e.g.:
 
 ```
-gatefile listening on 127.0.0.1:8654 base=/gatefile/file.txt doc=.../tmp/file.txt
+gatefile listening on 127.0.0.1:8654 base=/gatefile/file doc=.../tmp/file.txt
 ```
 
 For the examples below:
 
 ```sh
-BASE=http://127.0.0.1:8654/gatefile/file.txt
+BASE=http://127.0.0.1:8654/gatefile/file
 API_KEY=secret
 AUTH="Authorization: Bearer $API_KEY"
 ```
@@ -126,7 +126,7 @@ EOF
 chmod +x /tmp/on_update.sh
 
 GATEFILE_HOOK=/tmp/on_update.sh \
-BASE_URL=/gatefile/file.txt \
+BASE_URL=/gatefile/file \
 DOCUMENT_PATH=$PWD/tmp/file.txt \
 API_KEY=secret \
 ADDR=127.0.0.1:8654 \
