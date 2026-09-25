@@ -1,0 +1,21 @@
+# Gatefile systemd unit. Config via /etc/gatefile/gatefile.env.
+[Unit]
+Description=Gatefile single-document sync server
+After=network.target
+
+[Service]
+Type=simple
+User=gatefile
+Group=gatefile
+EnvironmentFile=-/etc/gatefile/gatefile.env
+ExecStart=/usr/bin/gatefile
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/gatefile
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
