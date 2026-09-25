@@ -1,0 +1,18 @@
+# Binaries
+/gatefile
+/bin/
+/dist/
+
+# Go build cache / test artifacts
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local scratch
+/tmp/
