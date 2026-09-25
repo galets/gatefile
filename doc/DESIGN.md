@@ -13,6 +13,7 @@ API_KEY=secret
 ```
 
 **Immutable settings loaded on startup:**
+
 - `BASE_URL` - API endpoint prefix (default: `/gatefile/file.txt`)
 - `DOCUMENT_PATH` - Path to persistent document file (required)
 - `API_KEY` - Single shared secret (required)
@@ -40,6 +41,7 @@ DocumentStore:
 ```
 
 **Responsibilities:**
+
 - In-memory document state
 - File persistence on updates
 - ETag validation before update
@@ -59,6 +61,7 @@ function checkAuth(config, request, next):
 ```
 
 **Requirements:**
+
 - Read `Authorization` header
 - Support format: `Bearer <api_key>` only
 - Compare against `API_KEY` env var
@@ -82,12 +85,14 @@ SseManager:
 ```
 
 **Responsibilities:**
+
 - Manage SSE connection lifecycle
 - Broadcast updates to all subscribers
 - Send initial ETag on subscription
 - No buffering (dropped messages are lost)
 
 **Connection handling:**
+
 - Client disconnect automatically removes subscriber
 - No cleanup needed on server restart (stateless manager)
 
@@ -108,25 +113,26 @@ RestHandler:
 ```
 
 **Endpoints:**
+
 - `GET /{base_url}/file.txt` - Return document with ETag
 - `GET /{base_url}/file.txt?subscribe` - SSE stream
 - `POST /{base_url}/file.txt` - Update document
 
 **ETag handling:**
 
-| Operation | Header | Requirement |
-|-----------|--------|-------------|
-| GET response | `ETag` | Always include current ETag |
+| Operation    | Header     | Requirement                                        |
+| ------------ | ---------- | -------------------------------------------------- |
+| GET response | `ETag`     | Always include current ETag                        |
 | POST request | `If-Match` | Required. Reject with **409 Conflict** if mismatch |
-| POST request | `If-Match` | Return **400 Bad Request** if missing |
+| POST request | `If-Match` | Return **400 Bad Request** if missing              |
 
 **Status codes:**
 
-| Scenario | Code |
-|----------|------|
-| POST success | 200 OK |
-| POST ETag mismatch | 409 Conflict |
-| POST missing ETag | 400 Bad Request |
+| Scenario             | Code             |
+| -------------------- | ---------------- |
+| POST success         | 200 OK           |
+| POST ETag mismatch   | 409 Conflict     |
+| POST missing ETag    | 400 Bad Request  |
 | Auth missing/invalid | 401 Unauthorized |
 
 ---
@@ -136,6 +142,7 @@ RestHandler:
 ### GET /gatefile/file.txt
 
 **Response:**
+
 ```http
 HTTP/1.1 200 OK
 ETag: "d41d8cd98f00b204e9800998ecf8427e"
@@ -148,6 +155,7 @@ Content-Length: 0
 ### GET /gatefile/file.txt?subscribe (SSE)
 
 **Connection:**
+
 ```
 HTTP/1.1 200 OK
 Content-Type: text/event-stream
@@ -155,18 +163,18 @@ Cache-Control: no-cache
 Connection: keep-alive
 
 d41d8cd98f00b204e9800998ecf8427e
-
 ```
 
 **Subsequent updates:**
+
 ```
 098f6bcd4621d373cade4e832627b4f6
-
 ```
 
 ### POST /gatefile/file.txt
 
 **Request:**
+
 ```http
 POST /gatefile/file.txt HTTP/1.1
 Content-Type: text/plain
@@ -177,11 +185,13 @@ hello
 ```
 
 **Success response:**
+
 ```http
 HTTP/1.1 200 OK
 ```
 
 **Conflict response:**
+
 ```http
 HTTP/1.1 409 Conflict
 ETag: "098f6bcd4621d373cade4e832627b4f6"
@@ -192,6 +202,7 @@ ETag mismatch. Current: 098f6bcd4621d373cade4e832627b4f6
 ```
 
 **Bad request (missing ETag):**
+
 ```http
 HTTP/1.1 400 Bad Request
 Content-Type: text/plain
@@ -204,14 +215,14 @@ ETag header required
 
 ## Error Handling
 
-| Error | HTTP Code | Response Body |
-|-------|-----------|---------------|
-| Missing API key | 401 | `{"error": "Authorization required"}` |
-| Invalid API key | 401 | `{"error": "Invalid authorization"}` |
-| Missing If-Match header | 400 | `{"error": "If-Match header required"}` |
-| ETag mismatch | 409 | `{"error": "Conflict", "current_etag": "..."}` |
-| Document read error | 500 | `{"error": "Internal server error"}` |
-| Document write error | 500 | `{"error": "Internal server error"}` |
+| Error                   | HTTP Code | Response Body                                  |
+| ----------------------- | --------- | ---------------------------------------------- |
+| Missing API key         | 401       | `Authorization required`                       |
+| Invalid API key         | 401       | `{"error": "Invalid authorization"}`           |
+| Missing If-Match header | 400       | `{"error": "If-Match header required"}`        |
+| ETag mismatch           | 409       | `{"error": "Conflict", "current_etag": "..."}` |
+| Document read error     | 500       | `{"error": "Internal server error"}`           |
+| Document write error    | 500       | `{"error": "Internal server error"}`           |
 
 ---
 
@@ -235,6 +246,7 @@ DESIGN.md            # This file
 ## Dependencies
 
 Need only (Go standard library):
+
 - `crypto/md5` hash function for ETags (lives in `store`)
 - `net/http` HTTP server + SSE (lives in `main`, `routes`, `sse`)
 - `os` file reading / writing (lives in `store`)
@@ -292,16 +304,22 @@ three routes (`GET` document, `GET ?subscribe`, `POST` update).
 ## SSE Connection Lifecycle
 
 1. Client connects with `GET /gatefile/file.txt?subscribe`
+
 2. Server sends current ETag immediately:
-   ```
-   <current_etag>
    
    ```
+   <current_etag>
+   ```
+
 3. Client maintains connection
+
 4. On successful POST:
+   
    - Update document
    - Broadcast new ETag to all subscribers
+
 5. Client disconnect:
+   
    - Automatic subscription cleanup
    - No tracking needed
 
