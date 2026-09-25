@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/galets/gatefile/internal/version"
 )
 
 type Config struct {
@@ -39,12 +41,13 @@ func Load() (*Config, error) {
 }
 
 func Usage() string {
-	return `Usage: gatefile [OPTIONS]
+	return fmt.Sprintf(`Usage: gatefile [OPTIONS]
 
-Gatefile is a stateless single-document synchronization server.
+Gatefile %s is a stateless single-document synchronization server.
 
 Options:
-  -h, --help    Show this help message and exit
+  -h, --help       Show this help message and exit
+  -V, --version    Show version and exit
 
 Configuration is environment-only:
 
@@ -57,7 +60,7 @@ Configuration is environment-only:
 Examples:
   DOCUMENT_PATH=$PWD/tmp/file.txt API_KEY=secret gatefile
   ADDR=127.0.0.1:8654 BASE_URL=/gatefile/file DOCUMENT_PATH=$PWD/tmp/file.txt API_KEY=secret gatefile
-`
+`, version.Version())
 }
 
 func PrintUsage(w io.Writer) {

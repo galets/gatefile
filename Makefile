@@ -1,4 +1,4 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo 0.1.0)
+VERSION ?= $(shell cat VERSION 2>/dev/null || echo 0.1.0)
 ARCH ?= $(shell dpkg --print-architecture 2>/dev/null || echo amd64)
 
 .PHONY: build test deb clean

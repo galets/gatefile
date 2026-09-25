@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Build a .deb for gatefile (no external deps besides go + dpkg-deb).
-# Usage: ./packaging/build-deb.sh [--version 0.1.0] [--arch amd64] [--out dist/]
+# Version source of truth: <repo-root>/VERSION (major.minor.build).
+# To bump the build number, just edit that file.
+# An explicit --version still overrides it (e.g. for CI).
+# Usage: ./packaging/build-deb.sh [--version X.Y.Z] [--arch ARCH] [--out dist/]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,8 +22,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$VERSION" ]]; then
-  VERSION="$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo 0.1.0)"
-  VERSION="${VERSION#v}"
+  VERSION="$(tr -d ' \t\r\n' < "$ROOT/VERSION")"
 fi
 if [[ -z "$ARCH" ]]; then
   ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
@@ -33,7 +35,7 @@ mkdir -p "$PKGDIR/DEBIAN" "$PKGDIR/usr/bin" \
   "$PKGDIR/usr/share/doc/gatefile"
 
 echo "==> building gatefile $VERSION ($ARCH)"
-CGO_ENABLED=0 go -C "$ROOT" build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$PKGDIR/usr/bin/gatefile" ./cmd/gatefile
+CGO_ENABLED=0 go -C "$ROOT" build -trimpath -ldflags "-s -w -X github.com/galets/gatefile/internal/version.override=$VERSION" -o "$PKGDIR/usr/bin/gatefile" ./cmd/gatefile
 
 # NOTE: packaging/gatefile.env and packaging/gatefile.service are kept
 # in the repo as reference only and are intentionally NOT installed
@@ -58,8 +60,11 @@ EOF
 
 chmod 0755 "$PKGDIR/usr/bin/gatefile"
 
-mkdir -p "$ROOT/$OUT"
-DEB="$ROOT/$OUT/gatefile_${VERSION}_${ARCH}.deb"
+mkdir -p "$OUT"
+case "$OUT" in
+  /*) DEB="$OUT/gatefile_${VERSION}_${ARCH}.deb" ;;
+  *) DEB="$ROOT/$OUT/gatefile_${VERSION}_${ARCH}.deb" ;;
+esac
 dpkg-deb --root-owner-group --build "$PKGDIR" "$DEB"
 echo "==> wrote $DEB"
 dpkg-deb -c "$DEB" | head -30

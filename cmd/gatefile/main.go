@@ -10,12 +10,17 @@ import (
 	"github.com/galets/gatefile/internal/routes"
 	"github.com/galets/gatefile/internal/sse"
 	"github.com/galets/gatefile/internal/store"
+	"github.com/galets/gatefile/internal/version"
 )
 
 func main() {
 	for _, arg := range os.Args[1:] {
 		if arg == "--help" || arg == "-h" || arg == "help" {
 			config.PrintUsage(os.Stdout)
+			return
+		}
+		if arg == "--version" || arg == "-V" || arg == "version" {
+			os.Stdout.WriteString("gatefile " + version.Version() + "\n")
 			return
 		}
 	}
