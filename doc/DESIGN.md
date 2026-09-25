@@ -10,6 +10,7 @@ Single-document synchronization service with REST API and Server-Sent Events (SS
 BASE_URL=/gatefile/file.txt
 DOCUMENT_PATH=/path/to/file.txt
 API_KEY=secret
+GATEFILE_HOOK=/usr/local/bin/gatefile_update.sh
 ```
 
 **Immutable settings loaded on startup:**
@@ -17,6 +18,7 @@ API_KEY=secret
 - `BASE_URL` - API endpoint prefix (default: `/gatefile/file.txt`)
 - `DOCUMENT_PATH` - Path to persistent document file (required)
 - `API_KEY` - Single shared secret (required)
+- `GATEFILE_HOOK` - Path to OS command executed on update (optional, no hook if unset/empty)
 
 ## Data Structures
 
@@ -103,14 +105,38 @@ RestHandler:
   config: Config
   store: DocumentStore
   sseManager: SseManager
+  hookMu: mutex (try-lock, guards GATEFILE_HOOK execution)
 
   handleGet(request):
     return document + etag
 
   handlePost(request):
-    check etag, update document,
+    check etag, try-acquire hookMu (fail 423 if held),
+    update document, run GATEFILE_HOOK synchronously
+    while holding hookMu, release hookMu,
     tell all SSE watchers
 ```
+
+**Update (POST) flow with `GATEFILE_HOOK`:**
+
+```
+1. Validate auth + If-Match (400/401/409 as before)
+2. Try-acquire hookMu (non-blocking):
+   - If already held (hook running for another session) → 423 Locked, no state change
+3. ETag check + persist new content + compute new ETag
+4. If GATEFILE_HOOK set:
+   - Execute OS command synchronously, block POST response until exit
+   - Hold hookMu for entire execution → concurrent POSTs get 423
+   - Hook failure → 500 Internal Server Error (document already persisted)
+5. Release hookMu, broadcast new ETag via SSE, return 200 OK
+```
+
+**Hook execution:**
+
+- Command from `GATEFILE_HOOK` env var, run via shell-less `exec` (no args, inherits env + document context via env/file as defined at implementation)
+- Synchronous/blocking: POST handler waits for process exit
+- Mutually exclusive: single global `hookMu`; non-blocking acquire gives **423 Locked** on contention
+- No hook configured → behavior unchanged (no locking)
 
 **Endpoints:**
 
@@ -134,6 +160,8 @@ RestHandler:
 | POST ETag mismatch   | 409 Conflict     |
 | POST missing ETag    | 400 Bad Request  |
 | Auth missing/invalid | 401 Unauthorized |
+| Hook already running | 423 Locked       |
+| Hook execution fails | 500 Internal Server Error |
 
 ---
 
@@ -215,14 +243,18 @@ ETag header required
 
 ## Error Handling
 
-| Error                   | HTTP Code | Response Body                                  |
-| ----------------------- | --------- | ---------------------------------------------- |
-| Missing API key         | 401       | `Authorization required`                       |
-| Invalid API key         | 401       | `{"error": "Invalid authorization"}`           |
-| Missing If-Match header | 400       | `{"error": "If-Match header required"}`        |
-| ETag mismatch           | 409       | `{"error": "Conflict", "current_etag": "..."}` |
-| Document read error     | 500       | `{"error": "Internal server error"}`           |
-| Document write error    | 500       | `{"error": "Internal server error"}`           |
+All error responses are `text/plain` (never JSON).
+
+| Error                   | HTTP Code | Response Body (text/plain)         |
+| ----------------------- | --------- | ---------------------------------- |
+| Missing API key         | 401       | `Authorization required`           |
+| Invalid API key         | 401       | `Invalid authorization`            |
+| Missing If-Match header | 400       | `If-Match header required`         |
+| ETag mismatch           | 409       | `Conflict, current etag: "..."`    |
+| Hook already running    | 423       | `Update in progress`               |
+| Hook execution failed   | 500       | `Internal server error`            |
+| Document read error     | 500       | `Internal server error`            |
+| Document write error    | 500       | `Internal server error`            |
 
 ---
 
@@ -250,6 +282,8 @@ Need only (Go standard library):
 - `crypto/md5` hash function for ETags (lives in `store`)
 - `net/http` HTTP server + SSE (lives in `main`, `routes`, `sse`)
 - `os` file reading / writing (lives in `store`)
+- `os/exec` hook command execution (lives in `routes` / hook runner)
+- `sync` non-blocking mutex for hook serialization (lives in `routes`)
 - `log` startup logging to stderr (lives in `main`)
 
 No third-party dependencies or frameworks.
@@ -316,7 +350,9 @@ three routes (`GET` document, `GET ?subscribe`, `POST` update).
 4. On successful POST:
    
    - Update document
+   - Run `GATEFILE_HOOK` synchronously (if set), holding hook lock
    - Broadcast new ETag to all subscribers
+6. **Hook serialization** - Blocking `GATEFILE_HOOK` execution guarded by try-lock mutex; concurrent POST → **423 Locked**
 
 5. Client disconnect:
    
@@ -344,3 +380,7 @@ three routes (`GET` document, `GET ?subscribe`, `POST` update).
 - Test missing ETag on POST
 - Test SSE initial event and subsequent updates
 - Test API key validation
+- Test hook: no `GATEFILE_HOOK` → POST returns immediately
+- Test hook: with `GATEFILE_HOOK` → POST blocks until hook exits
+- Test hook: concurrent POST while hook runs → 423 Locked
+- Test hook: hook non-zero exit → 500

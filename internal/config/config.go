@@ -11,6 +11,7 @@ type Config struct {
 	DocumentPath string
 	APIKey       string
 	Addr         string
+	Hook         string
 }
 
 func Load() (*Config, error) {
@@ -33,5 +34,5 @@ func Load() (*Config, error) {
 	if addr == "" {
 		addr = ":8080"
 	}
-	return &Config{BaseURL: base, DocumentPath: doc, APIKey: key, Addr: addr}, nil
+	return &Config{BaseURL: base, DocumentPath: doc, APIKey: key, Addr: addr, Hook: os.Getenv("GATEFILE_HOOK")}, nil
 }

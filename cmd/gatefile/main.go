@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("store load: %v", err)
 	}
 	mgr := sse.NewManager()
-	h := &routes.Handler{Store: st, SSE: mgr}
+	h := &routes.Handler{Store: st, SSE: mgr, Hook: cfg.Hook}
 
 	mux := http.NewServeMux()
 	mux.Handle(cfg.BaseURL, auth.Middleware(cfg.APIKey, h))

@@ -13,7 +13,7 @@ func Middleware(apiKey string, next http.Handler) http.Handler {
 			return
 		}
 		if !strings.HasPrefix(h, "Bearer ") || strings.TrimPrefix(h, "Bearer ") != apiKey {
-			http.Error(w, `{"error": "Invalid authorization"}`, http.StatusUnauthorized)
+			http.Error(w, `Invalid authorization`, http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)

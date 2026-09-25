@@ -83,11 +83,24 @@ func TestPost(t *testing.T) {
 		return resp.StatusCode, resp.Header, string(b)
 	}
 
-	if code, _, _ := post("", "hello"); code != 400 {
-		t.Fatalf("missing If-Match: got %d want 400", code)
+	if code, h, body := post("", "hello"); code != 400 || body != "If-Match header required\n" {
+		t.Fatalf("missing If-Match: got %d %q want 400 %q", code, body, "If-Match header required\n")
+	} else if ct := h.Get("Content-Type"); ct != "text/plain; charset=utf-8" {
+		t.Fatalf("missing If-Match content-type: got %q", ct)
 	}
-	if code, _, _ := post("wrong", "hello"); code != 409 {
+	if code, h, body := post("wrong", "hello"); code != 409 {
 		t.Fatalf("mismatch: got %d want 409", code)
+	} else {
+		want := `Conflict, current etag: "d41d8cd98f00b204e9800998ecf8427e"` + "\n"
+		if body != want {
+			t.Fatalf("mismatch body: got %q want %q", body, want)
+		}
+		if ct := h.Get("Content-Type"); ct != "text/plain; charset=utf-8" && ct != "text/plain" {
+			t.Fatalf("mismatch content-type: got %q", ct)
+		}
+		if h.Get("ETag") != "d41d8cd98f00b204e9800998ecf8427e" {
+			t.Fatalf("mismatch ETag header: got %q", h.Get("ETag"))
+		}
 	}
 	if code, _, _ := post("d41d8cd98f00b204e9800998ecf8427e", "hello"); code != 200 {
 		t.Fatalf("valid POST: got %d want 200", code)

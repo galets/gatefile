@@ -15,9 +15,10 @@ Configuration is env-only:
 | Var             | Required | Default              | Meaning                               |
 | --------------- | -------- | -------------------- | ------------------------------------- |
 | `BASE_URL`      | no       | `/gatefile/file.txt` | API endpoint path                     |
-| `DOCUMENT_PATH` | yes      | —                    | Path to the persistent document file  |
-| `API_KEY`       | yes      | —                    | Shared secret, sent as `Bearer <key>` |
+| `DOCUMENT_PATH` | yes      | -                    | Path to the persistent document file  |
+| `API_KEY`       | yes      | -                    | Shared secret, sent as `Bearer <key>` |
 | `ADDR`          | no       | `:8080`              | Listen address                        |
+| `GATEFILE_HOOK` | no       | - (disabled)         | Path to executable run on each update |
 
 Build and run:
 
@@ -49,7 +50,7 @@ AUTH="Authorization: Bearer $API_KEY"
 
 ## How to GET
 
-Returns the document body as `text/plain` plus the current version in the `ETag` header. Save the ETag — you need it for `POST`.
+Returns the document body as `text/plain` plus the current version in the `ETag` header. Save the ETag - you need it for `POST`.
 
 ```sh
 curl -i $BASE -H "$AUTH"
@@ -112,6 +113,32 @@ curl -i -X POST $BASE -H "$AUTH" -H "If-Match: wrong" --data 'hello'
 ```
 
 On `409`, re-`GET` to fetch the latest content + ETag, merge, and retry the `POST`.
+
+## How to use the update hook
+
+If `GATEFILE_HOOK` is set, the server runs that executable synchronously on every successful `POST` (no args, inherits env) before responding:
+
+```sh
+cat > /tmp/on_update.sh <<'EOF'
+#!/bin/sh
+echo "updated" >> /tmp/hook.log
+EOF
+chmod +x /tmp/on_update.sh
+
+GATEFILE_HOOK=/tmp/on_update.sh \
+BASE_URL=/gatefile/file.txt \
+DOCUMENT_PATH=$PWD/tmp/file.txt \
+API_KEY=secret \
+ADDR=127.0.0.1:8654 \
+/tmp/gatefile
+```
+
+Behavior:
+
+- `POST` blocks until the hook exits, then returns `200 OK`.
+- Only one hook runs at a time. A concurrent `POST` while a hook is running gets `423 Locked` (`Update in progress`) with no state change - retry it.
+- If the hook exits non-zero, `POST` returns `500 Internal Server Error`, but the document stays persisted. No SSE broadcast is sent in that case.
+- Unset/empty `GATEFILE_HOOK` disables the hook (no locking).
 
 ## How to use SSE to subscribe to notifications
 

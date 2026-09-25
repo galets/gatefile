@@ -41,7 +41,7 @@ func (m *Manager) Broadcast(etag string) {
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request, currentEtag string) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+		http.Error(w, `Internal server error`, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
