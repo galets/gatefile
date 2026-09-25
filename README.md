@@ -24,3 +24,7 @@ header on `POST` requests; mismatched or missing ETags are rejected to prevent r
 * **Stateless API**: It provides a simple REST interface authenticated via simple API keys.
 
 See [HOWTO.md](doc/HOWTO.md) for more information.
+
+## Requirements
+
+Minimum Go version supported: 1.24 (`golang-1.24-go`).

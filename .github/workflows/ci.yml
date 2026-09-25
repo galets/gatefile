@@ -1,0 +1,31 @@
+name: CI
+
+"on": [push]
+
+jobs:
+  build-test-deb:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Go from apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y golang-1.24-go
+          echo "/usr/lib/go-1.24/bin" >> "$GITHUB_PATH"
+          go version
+
+      - name: Build binary
+        run: make build
+
+      - name: Run tests
+        run: make test
+
+      - name: Build Debian package
+        run: make deb
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: dist/*.deb
