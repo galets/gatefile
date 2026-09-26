@@ -39,7 +39,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle(cfg.BaseURL, httplog.Middleware(auth.Middleware(cfg.APIKey, h)))
 
-	log.Printf("gatefile listening on %s base=%s doc=%s", cfg.Addr, cfg.BaseURL, cfg.DocumentPath)
+	log.Printf("gatefile %s listening on %s base=%s doc=%s", version.Version(), cfg.Addr, cfg.BaseURL, cfg.DocumentPath)
 	if err := http.ListenAndServe(cfg.Addr, mux); err != nil {
 		log.Fatalf("serve: %v", err)
 		os.Exit(1)
