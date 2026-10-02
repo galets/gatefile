@@ -35,6 +35,7 @@ func runReloader(events <-chan poll.Event, wait time.Duration, st *store.Documen
 				return
 			}
 			_, etag := st.Current()
+			log.Printf("external change: etag=%s", etag)
 			mgr.Broadcast(etag)
 		})
 	}
