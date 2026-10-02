@@ -20,6 +20,8 @@ GATEFILE_HOOK=/usr/local/bin/gatefile_update.sh
 - `API_KEY` - Single shared secret (required)
 - `GATEFILE_HOOK` - Path to OS command executed on update (optional, no hook if unset/empty)
 - `ADDR` - Listen address (default: `127.0.0.1:8654`)
+- `GATEFILE_POLL_MS` - Poll interval for external change detection in ms (default: `1000`, `0` disables)
+- `GATEFILE_POLL_SETTLE_TICKS` - Stable ticks before a polled change is committed (default: `2`)
 
 ## Data Structures
 
@@ -372,7 +374,10 @@ three routes (`GET` document, `GET ?subscribe`, `POST` update).
 4. **MD5 for ETag** - Fast, easy to implement, sufficient for conflict detection
 5. **Single shared secret (env)** - No config file, no database
 6. **Single instance** - No clustering, no shared state
-7. **File exclusively owned** - No external modification concerns
+7. **File shared with external writers** - A stat poller
+   (`GATEFILE_POLL_MS`, `0` disables) detects direct disk
+   edits, re-reads via `store.Reload`, and broadcasts the
+   new ETag over SSE. POST wins races via `If-Match` 409.
 
 ---
 

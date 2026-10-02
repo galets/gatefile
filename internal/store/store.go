@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"os"
@@ -67,4 +68,24 @@ func (s *DocumentStore) Update(newContent []byte, expectedEtag string) (string, 
 	s.content = content
 	s.etag = Hash(content)
 	return s.etag, nil
+}
+
+// Reload re-reads the file. True if content changed.
+func (s *DocumentStore) Reload() (bool, error) {
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			data = []byte{}
+		} else {
+			return false, err
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if bytes.Equal(data, s.content) {
+		return false, nil
+	}
+	s.content = data
+	s.etag = Hash(data)
+	return true, nil
 }

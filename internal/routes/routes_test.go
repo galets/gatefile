@@ -6,12 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/galets/gatefile/internal/auth"
+	"github.com/galets/gatefile/internal/poll"
 	"github.com/galets/gatefile/internal/sse"
 	"github.com/galets/gatefile/internal/store"
 )
@@ -26,6 +28,94 @@ func newServer(t *testing.T) (*httptest.Server, *store.DocumentStore) {
 	srv := httptest.NewServer(auth.Middleware("secret", h))
 	t.Cleanup(srv.Close)
 	return srv, st
+}
+
+func TestExternalEditBroadcasts(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "file.txt")
+	st, err := store.New(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mgr := sse.NewManager()
+	h := &Handler{Store: st, SSE: mgr}
+	srv := httptest.NewServer(auth.Middleware("secret", h))
+	t.Cleanup(srv.Close)
+
+	// Poll-driven commit path, mirrors main.runReloader.
+	p := poll.NewWithSettle(path, 10*time.Millisecond, 1)
+	defer p.Close()
+	go func() {
+		for range p.Events() {
+			changed, err := st.Reload()
+			if err != nil || !changed {
+				continue
+			}
+			_, etag := st.Current()
+			mgr.Broadcast(etag)
+		}
+	}()
+
+	// Subscribe, then write externally.
+	type result struct {
+		events []string
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		req, _ := http.NewRequest("GET", srv.URL+"?subscribe", nil)
+		req.Header.Set("Authorization", "Bearer secret")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			done <- result{nil, err}
+			return
+		}
+		defer resp.Body.Close()
+		var events []string
+		sc := bufio.NewScanner(resp.Body)
+		var buf strings.Builder
+		timeout := time.After(10 * time.Second)
+		for len(events) < 2 {
+			gotLine := make(chan bool, 1)
+			go func() { gotLine <- sc.Scan() }()
+			select {
+			case ok := <-gotLine:
+				if !ok {
+					done <- result{events, io.ErrUnexpectedEOF}
+					return
+				}
+				if line := sc.Text(); line == "" {
+					if s := strings.TrimSpace(buf.String()); s != "" {
+						events = append(events, s)
+					}
+					buf.Reset()
+				} else {
+					buf.WriteString(line + "\n")
+				}
+			case <-timeout:
+				done <- result{events, io.ErrNoProgress}
+				return
+			}
+		}
+		done <- result{events, nil}
+	}()
+
+	time.Sleep(300 * time.Millisecond)
+	if err := os.WriteFile(path, []byte("external-edit"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	res := <-done
+	if res.err != nil {
+		t.Fatalf("SSE: %v (events=%v)", res.err, res.events)
+	}
+	if len(res.events) != 2 {
+		t.Fatalf("expected 2 events, got %v", res.events)
+	}
+	if res.events[0] != store.Hash([]byte{}) {
+		t.Fatalf("initial event: %q", res.events[0])
+	}
+	if res.events[1] != store.Hash([]byte("external-edit")) {
+		t.Fatalf("external event: %q", res.events[1])
+	}
 }
 
 func get(t *testing.T, srv *httptest.Server, headers map[string]string) (int, http.Header, string) {

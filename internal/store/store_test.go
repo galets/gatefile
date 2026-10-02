@@ -58,3 +58,52 @@ func TestConflict(t *testing.T) {
 		t.Fatalf("expected ErrConflict, got %v", err)
 	}
 }
+
+func TestReloadDetectsExternalChange(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "file.txt")
+	if err := os.WriteFile(path, []byte("v1"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// External write bypassing Update.
+	if err := os.WriteFile(path, []byte("v2-longer"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := s.Reload()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+	content, etag := s.Current()
+	if string(content) != "v2-longer" {
+		t.Fatalf("unexpected content %q", content)
+	}
+	if etag != Hash([]byte("v2-longer")) {
+		t.Fatalf("unexpected etag %q", etag)
+	}
+}
+
+func TestReloadNoChange(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "file.txt")
+	if err := os.WriteFile(path, []byte("v1"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed, err := s.Reload()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed {
+		t.Fatal("expected changed=false")
+	}
+}
